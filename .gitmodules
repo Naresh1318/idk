@@ -1,0 +1,3 @@
+[submodule "meta-rpi"]
+	path = meta-rpi
+	url = git://github.com/jumpnow/meta-rpi

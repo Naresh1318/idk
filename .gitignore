@@ -1,0 +1,10 @@
+# build stuff
+build/*.log
+build/cache
+build/downloads
+build/sstate-cache
+build/tmp
+
+# ide
+.idea
+
