@@ -1,37 +1,37 @@
-# Copyright (C) 2019  Verkada
-
-DESCRIPTION = "runit init system"
-HOMEPAGE = "http://smarden.org/runit/"
-SECTION = "base"
+SUMMARY = "runit init and services system"
 LICENSE = "BSD"
-LIC_FILES_CHKSUM = "file://package/COPYING;md5=c9e8a560732fc8b860b6a91341cc603b"
+HOMEPAGE = "https://github.com/madscientist42/runit"
+LIC_FILES_CHKSUM = "file://COPYING.md;md5=3cf56266ad83a2793f171707969e46d1"
 
-SRC_URI = "http://smarden.org/runit/${PN}-${PV}.tar.gz;name=srcs"
+SRC_URI = " \
+	git://github.com/madscientist42/runit.git;protocol=https \
+	"
 
-SRC_URI[srcs.md5sum] = "6c985fbfe3a34608eb3c53dc719172c4"
-SRC_URI[srcs.sha256sum] = "6fd0160cb0cf1207de4e66754b6d39750cff14bb0aa66ab49490992c0c47ba18"
+SRCREV = "e27d217f8fc6c202a43001333b31a259efeab08c"
 
-S = "${WORKDIR}/admin/${PN}-${PV}"
+S = "${WORKDIR}/git"
 
-EXTRA_OEMAKE_append = " -C src 'CC=${CC}' 'LD=${CC}' 'AR=${AR}' 'RANLIB=${RANLIB}' 'LDFLAGS=${LDFLAGS}'"
+inherit cmake
 
-PARALLEL_MAKE = ""
-
-do_compile() {
-    touch ${S}/src/systype
-    oe_runmake
+# Make our lives a bit easier.  While the install works RIGHT for CMake for the packaging, we
+# want a bit of init-scripting legerdemain installed up-front as a part of this package (We
+# want/need, to make our lives easier, to establish the /etc/runit/runsvdir directory structure
+# enough to count for setting "current" that belongs to runit to be linked to "default"
+setup_runsvdir() {
+    install -d -m 0755 ${D}/etc/sv
+    install -d -m 0755 ${D}/etc/runit/runsvdir
+    install -d -m 0755 ${D}/etc/runit/runsvdir/default
+    install -d -m 0755 ${D}/etc/runit/runsvdir/single
+    ln -s /etc/runit/runsvdir/default ${D}/etc/runit/runsvdir/current
+    ln -s /etc/sv ${D}/service
 }
+do_install[postfuncs] += "${@bb.utils.contains('DISTRO_FEATURES', 'runit', 'setup_runsvdir', '', d)} "
+FILES_${PN} += "/service"
 
-do_install() {
-    install -d ${D}${base_sbindir}
-    for c in $(cat ${S}/package/commands)
-    do
-        install -m 0755 \
-                ${S}/src/$c \
-                ${D}${base_sbindir}/
-    done
-
-    ln -sf ${base_sbindir}/runit ${D}${base_sbindir}/init
+# Do some additional OpenEmbedded specific tasks for install if we're told we're using runit-init as init.
+do_runit_init_as_init() {
+	# Tie to init, so we run instead of busybox or sysvinit
+    install -d ${D}/sbin
+	ln -s /usr/sbin/runit ${D}/sbin/init
 }
-
-INSANE_SKIP_${PN} += "already-stripped"
+do_install[postfuncs] += "${@bb.utils.contains('DISTRO_FEATURES', 'runit-init', 'do_runit_init_as_init', '', d)} "
